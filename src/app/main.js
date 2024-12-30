@@ -15,6 +15,8 @@ import { GlyphrStudioProject } from '../project_data/glyphr_studio_project.js';
 import { closeAllNavMenus } from '../project_editor/navigator.js';
 import { ProjectEditor } from '../project_editor/project_editor.js';
 import { GlyphrStudioApp, showAppErrorPage } from './app.js';
+import { FontEditGlyphrStudioApp } from './font-edit-app.js';
+import { FontEditProjectEditor } from '../project_editor/font-edit-project-editor.js';
 
 /**
  * First function to run when the browser starts
@@ -131,16 +133,29 @@ export function getShipDate(dayOffset = 0) {
 // Getting root objects (App, Editor, Project / Current, Import Target)
 // --------------------------------------------------------------
 
+
+
+// State to know if the current app is the font editor
+let isFontEditApp = false
+
+
+/**
+ * Initialize font edit app and removes font editor standalone functionality
+ */
+export function initializeFontEditApp() {
+	isFontEditApp = true
+}
+
+// The main app object
+let GSApp;
+
 /**
  * Returns the overall App object
  * @returns {GlyphrStudioApp}
  */
-
-// The main app object
-let GSApp;
 export function getGlyphrStudioApp() {
 	if (!GSApp) {
-		GSApp = new GlyphrStudioApp();
+		GSApp = isFontEditApp ? new FontEditGlyphrStudioApp() : new GlyphrStudioApp();
 	}
 	return GSApp;
 }
@@ -189,7 +204,7 @@ export function getProjectEditorImportTarget() {
 export function addProjectEditorAndSetAsImportTarget() {
 	// log(`addProjectEditorAndSetAsImportTarget`, 'start');
 	const app = getGlyphrStudioApp();
-	app.projectEditors.push(new ProjectEditor());
+	app.projectEditors.push(isFontEditApp ? new FontEditProjectEditor() : new ProjectEditor());
 	app.editorImportTarget = app.projectEditors.at(-1);
 	// log(`addProjectEditorAndSetAsImportTarget`, 'end');
 	return getProjectEditorImportTarget();
