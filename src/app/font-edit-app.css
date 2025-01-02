@@ -20,6 +20,18 @@
     animation: rotation 1s linear infinite;
 }
 
+.fontVersion__container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fontVersion__container textarea {
+    width: 100%;
+    min-height: 100px;
+    max-width: 100%;
+}
+
 @keyframes rotation {
     0% {
         transform: rotate(0deg);

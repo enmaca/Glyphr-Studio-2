@@ -80,7 +80,6 @@ function makeMenu(menuName) {
 	entryPoint.addEventListener('mouseover', closeEveryTypeOfDialog);
 	const editor = getCurrentProjectEditor();
 	if (menuName === 'File') {
-		console.log('asdasda')
 		/** @type {Array} */
 		let fileMenuData = [{
 			child: makeElement({
@@ -97,7 +96,7 @@ function makeMenu(menuName) {
 			name: 'Save project',
 			icon: 'command_save',
 			onClick: async () => {
-				await ioFont_uploadFont()
+				showModalDialog(makeFontVersionCommentsDialogContent(), 500);
 			},
 		}];
 
@@ -267,4 +266,41 @@ function makeProjectPreviewRow(projectID = 0) {
 
 	// log(`makeProjectPreviewRow`, 'end');
 	return rowWrapper;
+}
+
+function makeFontVersionCommentsDialogContent(){
+	let content = makeElement({
+		tag: 'div',
+		className: 'fontVersion__container',
+		content: `<h2>Version comments</h2>`
+	 });
+
+	const commentsInput = /** @type {HTMLInputElement} */ (makeElement({
+		tag: 'textarea',
+		attributes: { type: 'text', placeholder: 'Write comments for the font changes' },
+	}));
+
+	const submitButton = makeElement({
+		tag: 'fancy-button',
+		id: 'button__create-new-project',
+		content: 'Save',
+		attributes: { disabled: '' },
+		onClick: async () => {
+			if(!commentsInput.value) return
+			commentsInput.removeEventListener('keyup', handleInputChanges)
+			commentsInput.setAttribute('disabled', '')
+			await ioFont_uploadFont({ comments: commentsInput.value })
+		},
+	});
+
+	const handleInputChanges = (event) => {
+		if(event.target.value.length > 0) submitButton.removeAttribute('disabled')
+		else submitButton.setAttribute('disabled', '')
+	}
+
+	commentsInput.addEventListener('keyup', handleInputChanges)
+
+	addAsChildren(content, [commentsInput, submitButton])
+
+	return content
 }
