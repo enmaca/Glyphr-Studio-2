@@ -20,7 +20,12 @@ import { writeGposKernDataToFont } from './tables/gpos.js';
 const ligatureSubstitutions = [];
 const codePointGlyphIndexTable = {};
 
-export async function ioFont_uploadFont() {
+/**
+ * Uploads the current font changes version
+ * @param {Object} request - Font changes version request
+ * @param {string} request.comments - Comments for the font changes version
+ */
+export async function ioFont_uploadFont(request) {
 	const font = await createFontData();
 	try{
 		const fontBlob = createFontBlob(font);
@@ -30,7 +35,11 @@ export async function ioFont_uploadFont() {
 		const fontId = params.get('id')
 		if(!fontId) throw new Error("No font id found in url");
 
-		const response = await fetch(`${window.location.origin}/${enFontUrl()}/${fontId}`, { method: 'PUT', body: fontBlob });
+        const formData = new FormData();
+        formData.append('comments', request.comments);
+        formData.append('font', fontBlob);
+
+		const response = await fetch(`${window.location.origin}/${enFontUrl()}/${fontId}`, { method: 'PUT', body: formData });
         if (!response.ok) {
             throw new Error(`HTTP Status: ${response.statusText}`);
         }
