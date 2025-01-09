@@ -28,21 +28,21 @@ const codePointGlyphIndexTable = {};
 export async function ioFont_uploadFont(request) {
 	const font = await createFontData();
 	try{
-		const fontBlob = createFontBlob(font);
-
+		const fontBase64Blob = await createFontBlobToBase64(font);
 		const url = new URL(window.location.href);
 		const params = new URLSearchParams(url.search);
 		const fontId = params.get('id')
+
 		if(!fontId) throw new Error("No font id found in url");
 
-        const formData = new FormData();
-        formData.append('comments', request.comments);
-        formData.append('font', fontBlob);
-
-		const response = await fetch(`${window.location.origin}/${enFontUrl()}/${fontId}`, { method: 'PUT', body: formData });
-        if (!response.ok) {
-            throw new Error(`HTTP Status: ${response.statusText}`);
-        }
+		const formJSON  = {
+			comments: request.comments,
+			fontInBase64: fontBase64Blob.base64
+		};
+		const response = await fetch(`${window.location.origin}/${enFontUrl()}/${fontId}`, { method: 'PUT', body: JSON.stringify(formJSON) });
+		if (!response.ok) {
+			throw new Error(`HTTP Status: ${response.statusText}`);
+		}
 		await pause();
 		showToast('Upload complete!');
 		await pause(1000);
@@ -113,15 +113,33 @@ async function createFontData() {
 	return font
 }
 
-function createFontBlob(font) {
+function createFontBlobToBase64(font) {
 	try {
 		// log(`\n⮟font⮟`);
 		// log(font);
+
+		// Convert font to ArrayBuffer
 		const arrayBuffer = font.toArrayBuffer();
 		const dataView = new DataView(arrayBuffer);
+
+		// Create a Blob
 		const blob = new Blob([dataView], { type: 'font/opentype' });
 
-		return blob
+		// Convert Blob to Base64
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				const base64Data = reader.result.split(',')[1]; // Strip the prefix
+				resolve({
+					blob,
+					base64: base64Data,
+				});
+			};
+			reader.onerror = (error) => {
+				reject(error);
+			};
+			reader.readAsDataURL(blob); // Convert Blob to Base64
+		});
 	} catch (error) {
 		console.error(error);
 	}
