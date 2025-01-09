@@ -216,3 +216,4 @@ pip-log.txt
 
 *storybook.log
 .env
+/.idea/
