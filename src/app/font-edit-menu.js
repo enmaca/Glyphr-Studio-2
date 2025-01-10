@@ -27,7 +27,6 @@ export function makeAppTopBar() {
 
 	let menus = makeElement({ className: 'top-bar__menus' });
 	menus.appendChild(makeMenu('File'));
-	menus.appendChild(makeMenu('Projects'));
 	menus.appendChild(makeMenu('Help'));
 
 	let mailIcon = `
