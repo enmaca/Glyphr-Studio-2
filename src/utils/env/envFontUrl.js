@@ -4,5 +4,5 @@
  * @returns {string}
  */
 export function enFontUrl() {
-    return import.meta.env.VITE_FONT_URL || 'product-designer/font';
+    return import.meta.env.VITE_FONT_URL || 'font-manager/font';
 }
