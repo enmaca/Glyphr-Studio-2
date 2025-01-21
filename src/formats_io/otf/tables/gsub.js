@@ -1,17 +1,20 @@
 import { makeLigatureID } from '../../../pages/ligatures';
+import { GlyphrStudioProject } from '../../../project_data/glyphr_studio_project';
 import {
+	decrementItemTotal,
+	incrementItemCounter,
 	makeGlyphrStudioGlyphObject,
 	updateFontImportProgressIndicator,
-	updateImportItemTotal,
 } from '../font_import';
 
 /**
  * Converts opentype.js ligatures into Glyphr Studio ligatures
  * @param {Object} importedFont - opentype.js font object
  * @param {Object} fontLigatures - opentype.js ligature table
+ * @param {GlyphrStudioProject} project - current project
  * @returns {Promise<Object>} - imported ligature groups
  */
-export async function importLigatures(importedFont, fontLigatures) {
+export async function importLigatures(importedFont, fontLigatures, project) {
 	const finalLigatures = {};
 	for (const liga of fontLigatures) {
 		await updateFontImportProgressIndicator('ligature');
@@ -21,7 +24,12 @@ export async function importLigatures(importedFont, fontLigatures) {
 		} catch {
 			console.warn(`Ligature import error: could not get ${liga.by} (${liga.sub})`);
 		}
-		importOneLigature({ glyph: thisLigature, gsub: liga.sub }, importedFont, finalLigatures);
+		importOneLigature(
+			{ glyph: thisLigature, gsub: liga.sub },
+			importedFont,
+			project,
+			finalLigatures
+		);
 	}
 
 	return finalLigatures;
@@ -35,9 +43,11 @@ export async function importLigatures(importedFont, fontLigatures) {
  * to the current project
  * @param {Object} otfLigature - Opentype.js Ligature object
  * @param {Object} importedFont - entire Opentype.js Font object
+ * @param {GlyphrStudioProject} project - current project
+ * @param {Object} finalLigatures - imported ligature groups
  * @returns nothing
  */
-function importOneLigature(otfLigature, importedFont, finalLigatures) {
+function importOneLigature(otfLigature, importedFont, project, finalLigatures) {
 	// log(`importOneLigature`, 'start');
 	// log(`otfLigature.glyph.name: ${otfLigature.glyph.name}`);
 	// log(otfLigature);
@@ -48,7 +58,7 @@ function importOneLigature(otfLigature, importedFont, finalLigatures) {
 		if (!importedLigature) {
 			console.warn(`Something went wrong with importing this glyph.`);
 
-			updateImportItemTotal(-1);
+			decrementItemTotal();
 			// log(`importOneLigature`, 'end');
 			return;
 		}
@@ -75,14 +85,15 @@ function importOneLigature(otfLigature, importedFont, finalLigatures) {
 		// log(`newLigatureID: ${newLigatureID}`);
 		if (newLigatureID) {
 			importedLigature.id = newLigatureID;
+			importedLigature.parent = project;
 			finalLigatures[newLigatureID] = importedLigature;
-			updateImportItemTotal(1);
+			incrementItemCounter();
 			// log(importedLigature);
 		} else {
-			updateImportItemTotal(-1);
+			decrementItemTotal();
 		}
 	} else {
-		updateImportItemTotal(-1);
+		decrementItemTotal();
 	}
 	// log(`importOneLigature`, 'end');
 }
