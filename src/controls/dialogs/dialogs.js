@@ -257,14 +257,7 @@ export function makeAndShowPathAddPointNotation(emPoint) {
  * @param {Boolean =} isDropdown - triggers slight style adjustments for dropdown control
  * @returns {HTMLElement}
  */
-export function makeContextMenu(
-	rows = [],
-	x,
-	y,
-	width,
-	height,
-	isDropdown = false
-) {
+export function makeContextMenu(rows = [], x, y, width, height, isDropdown = false) {
 	// log(`makeContextMenu`, 'start');
 	// log(`x: ${x}`);
 	// log(`y: ${y}`);
@@ -305,7 +298,6 @@ export function makeContextMenu(
 			if (isDropdown) element.style.maxHeight = `${height}px`;
 			else element.style.height = `${height}px`;
 		}
-		element.addEventListener('mouseleave', closeAllOptionChoosers);
 		element.focus();
 	} else {
 		console.warn(`Context menu not supplied with a screen position.`);
@@ -355,8 +347,7 @@ function makeOneContextMenuRow(data = {}) {
 			textToNode(
 				makeIcon({
 					name: data.icon,
-					color: accentColors.blue.l55,
-					hoverColor: 'blue',
+					color: accentColors.royal.l55,
 				})
 			)
 		);

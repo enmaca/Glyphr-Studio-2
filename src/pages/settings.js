@@ -62,9 +62,10 @@ export function makePage_Settings() {
  * @param {String} groupName - section
  * @param {String} propertyName - property
  * @param {Function =} callback - called after a change
+ * @param {Boolean =} inputFirst - switch the order of the label / input
  * @returns {Array}
  */
-export function makeOneSettingsRow(groupName, propertyName, callback) {
+export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst = false) {
 	// log(`makeOneSettingsRow`, 'start');
 	// log(`groupName: ${groupName}`);
 	// log(`propertyName: ${propertyName}`);
@@ -78,9 +79,10 @@ export function makeOneSettingsRow(groupName, propertyName, callback) {
 	let displayLabel = thisSetting.label;
 	displayLabel = displayLabel.replaceAll(' ', '&nbsp;');
 	displayLabel = displayLabel.replaceAll('-', '&#8209;');
-	displayLabel = `${displayLabel}:&emsp;`;
+	displayLabel = `${displayLabel}${inputFirst? '' : ':&emsp;'}`;
 
 	const label = makeElement({
+		tag: 'label',
 		className: 'settings__label',
 		innerHTML: displayLabel,
 	});
@@ -139,6 +141,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback) {
 			tag: 'pre',
 			innerHTML: settingType || 'Text',
 			title: `Expected value type`,
+			className: 'value-type',
 		});
 	}
 
@@ -169,7 +172,8 @@ export function makeOneSettingsRow(groupName, propertyName, callback) {
 	}
 
 	// log(`makeOneSettingsRow`, 'end');
-	return [label, info, input, type];
+	if (inputFirst) return [input, label, info, type];
+	else return [label, info, input, type];
 }
 
 /**

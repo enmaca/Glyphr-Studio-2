@@ -104,6 +104,8 @@ function makeRows(parent) {
 	makeOneRow('app', 'exportLigatures');
 	makeOneRow('app', 'exportKerning');
 	makeOneRow('app', 'moveShapesOnSVGDragDrop');
+	makeOneRow('app', 'autoSideBearingsOnSVGDragDrop');
+	makeOneRow('app', 'autoRightBearingOnFirstShape');
 	makeOneRow('font', 'family');
 	makeOneRow('font', 'style');
 	makeOneRow('font', 'version');

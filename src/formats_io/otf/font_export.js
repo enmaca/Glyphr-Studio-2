@@ -50,9 +50,6 @@ export async function ioFont_exportFont() {
 	}
 	showToast('Finalizing...');
 
-	options.glyphs.sort(function (a, b) {
-		return a.unicode - b.unicode;
-	});
 	// log(`\n⮟options.glyphs⮟`);
 	// log(options.glyphs);
 
@@ -64,6 +61,8 @@ export async function ioFont_exportFont() {
 	// log(`\n⮟font⮟`);
 	// log(font);
 
+	// log(`\n⮟ligatureSubstitutions⮟`);
+	// log(ligatureSubstitutions);
 	if (exportLigatures) {
 		ligatureSubstitutions.forEach((sub) => {
 			// log(`Adding ligature to font`);
@@ -506,7 +505,7 @@ function makeOpenTypeJS_Path(path, openTypePath) {
 	openTypePath.moveTo(round(path.pathPoints[0].p.x), round(path.pathPoints[0].p.y));
 
 	path.pathPoints.forEach((point) => {
-		const nextPoint = path.pathPoints[path.getNextPointNum(point.pointNumber)];
+		const nextPoint = path.pathPoints[path.getNextPointNumber(point.pointNumber)];
 		openTypePath.curveTo(
 			round(point.h2.x),
 			round(point.h2.y),

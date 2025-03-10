@@ -5,9 +5,9 @@ import { PathPoint } from '../../project_data/path_point.js';
 import { setCursor } from '../cursors.js';
 import { isOverFirstPoint } from '../detect_edit_affordances.js';
 import { canvasUIPointSize } from '../draw_edit_affordances.js';
-import { cXsX, cYsY } from '../edit_canvas.js';
+import { cXsX, cYsY, sXcX, sYcY } from '../edit_canvas.js';
 import { eventHandlerData } from '../events.js';
-import { clickTool } from './tools.js';
+import { checkForFirstShapeAutoRSB, selectTool } from './tools.js';
 
 /**
 	// ----------------------------------------------------------------
@@ -30,9 +30,12 @@ export class Tool_NewPath {
 		const msPoints = editor.multiSelect.points;
 
 		// New point
-		let newPoint = new PathPoint();
+		// log(`editor.project.settings.font.upm: ${editor.project.settings.font.upm}`);
+		let newPoint = new PathPoint({ projectUPM: editor.project.settings.font.upm });
 		newPoint.p.x = cXsX(ehd.mousePosition.x);
 		newPoint.p.y = cYsY(ehd.mousePosition.y);
+
+		if (eventHandlerData.isShiftDown) newPoint.roundAll(0);
 
 		// Ensure selection
 		if (this.newPath) {
@@ -40,6 +43,9 @@ export class Tool_NewPath {
 				msShapes.select(this.newPath);
 			}
 		}
+
+		// log(`this.firstPoint: ${this.firstPoint}`);
+		// log(`this.newPath: ${this.newPath}`);
 
 		if (this.firstPoint) {
 			// make a new path with the new PathPoint
@@ -51,6 +57,8 @@ export class Tool_NewPath {
 			count += 1;
 
 			this.newPath = editor.selectedItem.addOneShape(new Path({ name: 'Path ' + count }));
+			// log(`\n⮟this.newPath⮟`);
+			// log(this.newPath);
 			if (this.newPath) {
 				this.currentPoint = this.newPath.addPathPoint(newPoint);
 				msShapes.select(this.newPath);
@@ -82,6 +90,8 @@ export class Tool_NewPath {
 			msPoints.select(this.currentPoint);
 		}
 
+		// log(`\n⮟this.currentPoint⮟`);
+		// log(this.currentPoint);
 		this.firstPoint = false;
 		this.dragging = true;
 		ehd.lastX = ehd.mousePosition.x;
@@ -95,11 +105,13 @@ export class Tool_NewPath {
 		const editor = getCurrentProjectEditor();
 
 		if (this.dragging) {
+
+					// log(`\n⮟this.currentPoint⮟`);
+					// log(this.currentPoint);
 			// avoid really small handles
-			let ps2 = canvasUIPointSize * 2;
 			if (
-				Math.abs(this.currentPoint.p.x - cXsX(ehd.mousePosition.x)) > ps2 ||
-				Math.abs(this.currentPoint.p.y - cYsY(ehd.mousePosition.y)) > ps2
+				Math.abs(sXcX(this.currentPoint.p.x) - ehd.mousePosition.x) > canvasUIPointSize ||
+				Math.abs(sYcY(this.currentPoint.p.y) - ehd.mousePosition.y) > canvasUIPointSize
 			) {
 				this.currentPoint.h1.use = true;
 				this.currentPoint.h2.use = true;
@@ -107,6 +119,8 @@ export class Tool_NewPath {
 				this.currentPoint.h2.y = cYsY(ehd.mousePosition.y);
 				this.currentPoint.makeSymmetric('h2');
 			}
+
+			if (eventHandlerData.isShiftDown) this.currentPoint.roundAll(0);
 
 			setCursor('penCircle');
 			ehd.lastX = ehd.mousePosition.x;
@@ -126,13 +140,18 @@ export class Tool_NewPath {
 
 	mouseup() {
 		// log('Tool_NewPath.mouseup', 'start');
+		const editor = getCurrentProjectEditor();
 		setCursor('penPlus');
 
 		if (eventHandlerData.undoQueueHasChanged) {
 			// For new path tools, mouse up always adds to the undo-queue
-			const editor = getCurrentProjectEditor();
 			editor.history.addState(`New path: added point ${this.currentPoint.pointNumber}`);
 			eventHandlerData.undoQueueHasChanged = false;
+		}
+
+		if (eventHandlerData.isShiftDown) {
+			this.currentPoint.roundAll(0);
+			editor.publish('currentPathPoint', this.currentPoint);
 		}
 
 		this.dragging = false;
@@ -164,9 +183,10 @@ export class Tool_NewPath {
  * the path creation ends, but not because of this button.
  */
 export function removeStopCreatingNewPathButton() {
+	checkForFirstShapeAutoRSB();
 	if (document.querySelector('#done-creating-path-button')) {
 		stopCreatingNewPath();
-		clickTool('pathEdit');
+		selectTool('pathEdit');
 	}
 }
 

@@ -1,7 +1,7 @@
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
 import { ioSVG_convertSVGTagsToGlyph } from '../formats_io/svg_outlines/svg_outline_import.js';
-import { copyShapesFromTo } from '../panels/actions.js';
+import { copyShapesFromTo } from '../project_editor/actions.js';
 import { cancelDefaultEventActions } from './events.js';
 
 /**
@@ -34,14 +34,19 @@ export function importSVGtoCurrentItem(svgData, sourceText = 'SVG') {
 		msShapes.clear();
 		newShapes.forEach((shape) => msShapes.add(shape));
 
-		if (getCurrentProject().settings.app.moveShapesOnSVGDragDrop) {
+		const appSettings = getCurrentProject().settings.app;
+		if (appSettings.autoSideBearingsOnSVGDragDrop > -1) {
+			const sbValue = appSettings.autoSideBearingsOnSVGDragDrop;
+			msShapes.setShapePosition(sbValue);
+			editor.selectedItem.advanceWidth = msShapes.maxes.width + sbValue * 2;
+		} else if (getCurrentProject().settings.app.moveShapesOnSVGDragDrop) {
 			msShapes.setShapePosition(0, msShapes.maxes.height);
 		}
 
 		editor.publish('currentItem', editor.selectedItem);
 		showToast(`Imported ${tempGlyph.shapes.length} shapes from ${sourceText}`);
 	} else {
-		showToast('Could not import pasted SVG code.');
+		// showToast('Could not import pasted SVG code.');
 	}
 	// log(`importSVGtoCurrentItem`, 'end');
 }
@@ -69,20 +74,19 @@ export async function handlePasteSVGonEditCanvas(event) {
 	if (clipboardData) {
 		// log(clipboardData);
 		let text = clipboardData.getData('Text');
-		importSVGtoCurrentItem(text, '<br>the operating system clipboard');
+		// log(`clipboardData text: |${text}|`);
+		if (text) {
+			importSVGtoCurrentItem(text, '<br>the operating system clipboard');
+		}
 	} else if (navigator?.clipboard?.readText) {
 		navigator.clipboard.readText().then((text) => {
+			// log(`navigator text: |${text}|`);
 			if (text) {
-				// log(`text: ${text}`);
 				importSVGtoCurrentItem(text, '<br>the operating system clipboard');
-			} else {
-				showToast('Could not import SVG from the operating system clipboard');
 			}
 		});
 	} else {
-		showToast('Could not import SVG from the operating system clipboard');
-		// log(`handlePasteSVGonEditCanvas`, 'end');
-		return;
+		// log(`fallthrough`);
 	}
 
 	// log(`handlePasteSVGonEditCanvas`, 'end');

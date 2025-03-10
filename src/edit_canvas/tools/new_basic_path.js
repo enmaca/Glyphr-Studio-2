@@ -48,7 +48,7 @@ export class Tool_NewBasicPath {
 
 		editor.multiSelect.shapes.clear();
 
-		editor.editCanvas.redraw();
+		editor.editCanvas.redraw('newBasicPath:mousedown');
 
 		// log(`Tool_NewBasicPath.mousedown`, 'end');
 	}
@@ -77,7 +77,7 @@ export class Tool_NewBasicPath {
 
 			ehd.undoQueueHasChanged = true;
 			editor.publish('currentPath', ehd.newBasicPath);
-			editor.editCanvas.redraw();
+			editor.editCanvas.redraw('newBasicPath:mousemove');
 		}
 		// log(`Tool_NewBasicPath.mousemove`, 'end');
 	}
@@ -135,8 +135,8 @@ export class Tool_NewBasicPath {
 			ehd.undoQueueHasChanged = false;
 		}
 
-		// clickTool('pathEdit');
-		editor.editCanvas.redraw();
+		// selectTool('pathEdit');
+		editor.editCanvas.redraw('newBasicPath:mouseup');
 		// log(`Tool_NewBasicPath.mouseup`, 'end');
 	}
 }
