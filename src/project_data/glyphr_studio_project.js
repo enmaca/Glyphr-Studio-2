@@ -12,7 +12,9 @@ import { makeLigatureID } from '../pages/ligatures.js';
 import { Glyph } from '../project_data/glyph.js';
 import { Guide } from '../project_editor/guide.js';
 import { CharacterRange } from './character_range.js';
+import { ComponentInstance } from './component_instance.js';
 import { KernGroup } from './kern_group.js';
+import { Path } from './path.js';
 
 /**
  * Creates a new Glyphr Studio Project
@@ -43,6 +45,7 @@ export class GlyphrStudioProject {
 				autoSave: true,
 				savePreferences: false,
 				unlinkComponentInstances: true,
+				directlyDragCurves: true,
 				showNonCharPoints: false,
 				itemChooserPageSize: 256,
 				previewText: false,
@@ -50,6 +53,12 @@ export class GlyphrStudioProject {
 				exportKerning: true,
 				exportUneditedItems: true,
 				moveShapesOnSVGDragDrop: false,
+				autoSideBearingsOnSVGDragDrop: 50,
+				autoRightBearingOnFirstShape: 50,
+				highlightPointsNearPoints: 2,
+				highlightPointsNearHandles: 2,
+				highlightPointsNearXZero: 2,
+				highlightPointsNearYZero: 2,
 				guides: {
 					drawGuidesOnTop: false,
 					systemShowGuides: true,
@@ -369,6 +378,11 @@ export class GlyphrStudioProject {
 		if (objType === 'KernGroup') {
 			destination = this.kerning;
 			if (!newID) newID = makeKernGroupID(this.kerning);
+		}
+
+		// Don't import Paths with empty PathPoints array
+		if (objType !== 'KernGroup' && Array.isArray(newItem.shapes)) {
+			newItem.shapes = newItem.shapes.filter(filterEmptyPaths);
 		}
 
 		newItem.id = newID;
@@ -823,6 +837,18 @@ export function validateItemID(oldID, objType) {
 		if (suffix) return `glyph-${suffix}`;
 	}
 	return oldID;
+}
+
+/**
+ * Function for array.filter to get rid of paths with no path points
+ * @param {Object | Path | ComponentInstance} shape - thing that shouldn't be empty
+ * @returns {Boolean}
+ */
+function filterEmptyPaths(shape) {
+	if (shape.objType === 'Path') {
+		if (shape.pathPoints.length === 0) return false;
+	}
+	return true;
 }
 
 /**

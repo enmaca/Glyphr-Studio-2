@@ -5,6 +5,7 @@ import { clone } from '../common/functions.js';
 import { drawGlyph } from '../display_canvas/draw_paths.js';
 import { kernGroupSideMaxWidth } from '../project_editor/cross_item_actions.js';
 import { guideColorDark, guideColorLight, guideColorMedium } from '../project_editor/guide.js';
+import { runQualityChecksForItem } from '../project_editor/quality_checks.js';
 import { drawCharacterKernExtra, drawContextCharacters } from './context_characters.js';
 import {
 	computeAndDrawBoundingBox,
@@ -13,6 +14,7 @@ import {
 	computeAndDrawPathPointHandles,
 	computeAndDrawPathPoints,
 	computeAndDrawRotationAffordance,
+	drawAllHighlightedPoints,
 	drawNewBasicPath,
 	drawPathPointHover,
 	drawSelectedPathOutline,
@@ -116,7 +118,7 @@ export class EditCanvas extends HTMLElement {
 			topic: '*',
 			subscriberID: `editCanvas-all`,
 			callback: () => {
-				this.redraw();
+				this.redraw('subscription:editCanvas-all');
 			},
 		});
 		// log(`EditCanvas.constructor`, 'end');
@@ -145,7 +147,7 @@ export class EditCanvas extends HTMLElement {
 			case 'editing-item-id':
 				this.editingItemID = newValue;
 				// getCurrentProjectEditor().autoFitIfViewIsDefault();
-				this.redraw();
+				this.redraw('attributeChangedCallback:editing-item-id');
 				break;
 		}
 		// log(`EditCanvas.attributeChangeCallback`, 'end');
@@ -154,16 +156,22 @@ export class EditCanvas extends HTMLElement {
 	// --------------------------------------------------------------
 	// Redraw the canvas
 	// --------------------------------------------------------------
-	redraw() {
-		// log('EditCanvas.redraw', 'start');
+	/**
+	 * Redraw the canvas
+	 * @param {String | undefined} caller - who is calling redraw
+	 */
+	redraw(caller = 'unkown') {
+		// log(`EditCanvas.redraw \\ ${caller}`, 'start');
 		const editor = getCurrentProjectEditor();
 		const project = getCurrentProject();
 		const view = editor.view;
+		// log(`view: ${view.dx}, ${view.dy}, ${view.dz}`);
 		const ctx = this.ctx;
 		const width = Number(this.width);
 		const height = Number(this.height);
 		const currentItemID = this.editingItemID;
 		const currentItem = project.getItem(currentItemID);
+		runQualityChecksForItem(currentItem);
 		// log(`currentItemID: ${currentItemID}`);
 		const advanceWidth = currentItem?.advanceWidth || 0;
 		const itemXMax = Math.max(advanceWidth, currentItem?.maxes?.xMax || 0);
@@ -176,12 +184,13 @@ export class EditCanvas extends HTMLElement {
 			else redrawGlyphEdit();
 		}
 
-		// log('EditCanvas.redraw', 'end');
+		// log(`EditCanvas.redraw \\ ${caller}`, 'end');
 
 		function redrawGlyphEdit() {
 			// log(`EditCanvas.redrawGlyphEdit`, 'start');
 			editor.autoFitIfViewIsDefault();
 			ctx.clearRect(0, 0, width, height);
+			const ehd = eventHandlerData;
 
 			// Guides
 			const guidesSettings = editor.project.settings.app.guides;
@@ -197,10 +206,10 @@ export class EditCanvas extends HTMLElement {
 			// Draw selected shape
 			const editMode = editor.selectedTool;
 			// log(`editMode: ${editMode}`);
-			// log(`eventHandlerData.handle: ${eventHandlerData.handle}`);
+			// log(`ehd.handle: ${ehd.handle}`);
 			if (editMode === 'resize') {
 				drawSelectedPathOutline(ctx, view);
-				if (eventHandlerData.handle === 'rotate') {
+				if (ehd.handle === 'rotate') {
 					computeAndDrawRotationAffordance(ctx);
 				} else {
 					computeAndDrawBoundingBox(ctx);
@@ -208,19 +217,19 @@ export class EditCanvas extends HTMLElement {
 				}
 			} else if (editMode === 'pathEdit') {
 				drawSelectedPathOutline(ctx, view);
-				if (eventHandlerData.isCtrlDown  || eventHandlerData.selecting) {
+				if (ehd.selecting) {
 					computeAndDrawPathPoints(ctx, true);
 					// testDrawAllPathPointHandles(ctx);
 				} else {
 					computeAndDrawPathPointHandles(ctx);
 					computeAndDrawPathPoints(ctx);
-					// drawPathPointHover(ctx, eventHandlerData.hoverPoint);
+					// drawPathPointHover(ctx, ehd.hoverPoint);
 				}
 			} else if (editMode === 'pathAddPoint') {
 				drawSelectedPathOutline(ctx, view);
 				computeAndDrawPathPoints(ctx);
-				if (eventHandlerData.hoverPoint) {
-					drawPathPointHover(ctx, eventHandlerData.hoverPoint);
+				if (ehd.hoverPoint) {
+					drawPathPointHover(ctx, ehd.hoverPoint);
 				}
 			} else if (editMode === 'newPath') {
 				computeAndDrawPathPointHandles(ctx);
@@ -229,7 +238,7 @@ export class EditCanvas extends HTMLElement {
 
 			// Draw temporary new paths
 			if (eventHandlerData?.newBasicPath?.objType) {
-				drawNewBasicPath(ctx, eventHandlerData.newBasicPath, view);
+				drawNewBasicPath(ctx, ehd.newBasicPath, view);
 			}
 
 			// Guides (if draw on top)
@@ -245,8 +254,11 @@ export class EditCanvas extends HTMLElement {
 				drawContextCharacters(ctx);
 			}
 
+			// Highlighted points
+			drawAllHighlightedPoints(ctx);
+
 			// Drag to select box
-			if (eventHandlerData.selecting) {
+			if (ehd.selecting) {
 				computeAndDrawDragToSelectBox(ctx, eventHandlerData);
 			}
 			// log(`EditCanvas.redrawGlyphEdit`, 'end');
@@ -359,14 +371,36 @@ export class EditCanvas extends HTMLElement {
 
 			// Verticals
 			if (drawVerticals) {
+				/** @type {String | false} */
+				let sbHover = false;
+				if (editor.selectedTool === 'resize') {
+					const tool = editor.eventHandlers.tool_resize;
+					sbHover = tool.sideBearingHover || tool.sideBearingEdit;
+				}
+
 				if (editor.systemGuides.leftSide) {
-					setSystemGuideColor('dark', alpha);
-					drawEmVerticalLine(ctx, 0, view);
+					if (sbHover === 'lsb') {
+						setSystemGuideColor('dark', 0.8);
+						drawGuideLabel(`Left side bearing: ${currentItem.leftSideBearing}`, 0, false);
+					} else {
+						setSystemGuideColor('dark', alpha);
+					}
+					drawEmVerticalLine(ctx, 0, view, sbHover === 'lsb');
 					if (showLabels) drawGuideLabel('Left side', 0, false);
 				}
-				if (editor.systemGuides.rightSide && advanceWidth) {
-					setSystemGuideColor('dark', alpha);
-					drawEmVerticalLine(ctx, advanceWidth, view);
+
+				if (editor.systemGuides.rightSide && advanceWidth && currentItem.objType !== 'Component') {
+					if (sbHover === 'rsb') {
+						setSystemGuideColor('dark', 0.8);
+						drawGuideLabel(
+							`Right side bearing: ${currentItem.rightSideBearing}`,
+							advanceWidth,
+							false
+						);
+					} else {
+						setSystemGuideColor('dark', alpha);
+					}
+					drawEmVerticalLine(ctx, advanceWidth, view, sbHover === 'rsb');
 					if (showLabels) drawGuideLabel('Right side', advanceWidth, false);
 				}
 			}
@@ -463,10 +497,10 @@ function drawEmHorizontalLine(ctx, emY = 0, emLineWidth, view) {
  * @param {Number} emX - x value, in Em space units (not pixels)
  * @param {Object} view - view object (dx, dy, dz)
  */
-export function drawEmVerticalLine(ctx, emX = 0, view) {
+export function drawEmVerticalLine(ctx, emX = 0, view, tall = false) {
 	// log(`drawEmVerticalLine`, 'start');
 	const project = getCurrentProject();
-	let pad = 50 * view.dz;
+	let pad = (tall ? 200 : 50) * view.dz;
 	const lineTopY = sYcY(project.settings.font.ascent, view) - pad;
 	let lineX = sXcX(emX);
 	lineX = Math.floor(lineX);

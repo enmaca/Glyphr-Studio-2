@@ -1,12 +1,11 @@
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
+import { count } from '../common/functions.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
 import { drawShape } from '../display_canvas/draw_paths.js';
 import { isOverBoundingBoxHandle } from '../edit_canvas/draw_edit_affordances.js';
 import { addPathToCurrentItem } from '../edit_canvas/tools/tools.js';
-import { ComponentInstance } from '../project_data/component_instance.js';
 import { Glyph } from '../project_data/glyph.js';
 import { Path } from '../project_data/path.js';
-import { PathPoint } from '../project_data/path_point.js';
 // import { combinePaths } from './boolean_combine.js';
 import { combinePaths } from './boolean_combine.js';
 import { makeGlyphWithResolvedLinks, removeLinkFromUsedIn } from './cross_item_actions.js';
@@ -194,7 +193,7 @@ export class MultiSelectPoints extends MultiSelect {
 
 	publishChanges(topic = 'whichPathPointIsSelected') {
 		// log(`MultiSelectPoints.publishChanges`, 'start');
-		if(this.allowPublishing) {
+		if (this.allowPublishing) {
 			const editor = getCurrentProjectEditor();
 			editor.publish(topic, this.members);
 		}
@@ -220,6 +219,18 @@ export class MultiSelectPoints extends MultiSelect {
 		this.changed();
 	}
 
+	selectAll() {
+		const currItem = getCurrentProjectEditor().selectedItem;
+		if (currItem.shapes) {
+			currItem.shapes.forEach((shape) => {
+				getCurrentProjectEditor().multiSelect.shapes.add(shape);
+				if (shape.pathPoints) {
+					shape.pathPoints.forEach((point) => this.add(point));
+				}
+			});
+		}
+	}
+
 	deleteShapesPoints() {
 		let point;
 		let parentPath;
@@ -240,6 +251,21 @@ export class MultiSelectPoints extends MultiSelect {
 
 		this.clear();
 		return minPointIndex;
+	}
+
+	align(edge) {
+		// showToast('align ' + edge);
+		const shapeMaxes = this.virtualShape.maxes;
+		this.virtualShape.pathPoints.forEach((point) => {
+			if (edge === 'top') point.p.y = shapeMaxes.yMax;
+			if (edge === 'middle') point.p.y = shapeMaxes.center.y;
+			if (edge === 'bottom') point.p.y = shapeMaxes.yMin;
+			if (edge === 'left') point.p.x = shapeMaxes.xMin;
+			if (edge === 'center') point.p.x = shapeMaxes.center.x;
+			if (edge === 'right') point.p.x = shapeMaxes.xMax;
+		});
+
+		// log('Glyph.alignShapes', 'end');
 	}
 
 	get highestSelectedPointNumber() {
@@ -278,6 +304,82 @@ export class MultiSelectPoints extends MultiSelect {
 		}
 		// log(`lowest selected point number: ${lowest}`);
 		return lowest;
+	}
+
+	canMergeSelectedPathPoints() {
+		if (this.members.length < 2) return false;
+		return this.sortPathPointsByContiguous();
+	}
+
+	mergePathPoints() {
+		const path = this.members[0].parent;
+		const resultPoint = path.mergePathPoints(this.members);
+		this.clear();
+		this.select(resultPoint);
+	}
+
+	/**
+	 * Checks if selected points are contiguous, and if so,
+	 * if they can be sorted by point number (accounting for
+	 * selections across point zero).
+	 * @returns {Boolean} - successful sorting
+	 */
+	sortPathPointsByContiguous() {
+		// log(`msPoints.sortPathPointsByContiguous`, 'start');
+		this.members.sort((a, b) => a.pointNumber - b.pointNumber);
+		const path = this.members[0].parent;
+
+		// Check to make sure all the points have the same parent path
+		for (let m = 1; m < this.members.length; m++) {
+			if (this.members[m].parent !== path) {
+				// log(`FALSE - members have different parents`);
+				// log(`msPoints.sortPathPointsByContiguous`, 'end');
+				return false;
+			}
+		}
+
+		// Look through for adjacent points or a break
+		const breakpoints = [];
+		for (let p = 0; p < this.members.length; p++) {
+			if (p < this.members.length - 1) {
+				const point = this.members[p];
+				const nextPoint = this.members[p + 1];
+				breakpoints[p] = point.pointNumber + 1 === nextPoint.pointNumber;
+			}
+		}
+		// log(`\n⮟breakpoints⮟`);
+		// log(breakpoints);
+
+		const breakpointCount = count(breakpoints, false);
+		if (breakpointCount > 1) {
+			// log(`FALSE - more than one breakpoint, not contiguous`);
+			// log(`msPoints.sortPathPointsByContiguous`, 'end');
+			return false;
+		}
+
+		if (breakpointCount === 0) {
+			// log(`TRUE - members are contiguous`);
+			// log(`msPoints.sortPathPointsByContiguous`, 'end');
+			return true;
+		}
+
+		if (this.members.at(-1).pointNumber !== path.pathPoints.length - 1) {
+			// log(`FALSE - not possible for the last point to loop back to point zero`);
+			// log(`msPoints.sortPathPointsByContiguous`, 'end');
+			return false;
+		}
+
+		// Only one breakpoint, and the two sections should loop
+		// Assemble the sorted array
+		const breakpoint = breakpoints.indexOf(false);
+		const tail = this.members.splice(breakpoint + 1);
+		this.members = tail.concat(this.members);
+
+		// log(`TRUE - successfully sorted`);
+		// log(this.members.map((m) => m.pointNumber));
+
+		// log(`msPoints.sortPathPointsByContiguous`, 'end');
+		return true;
 	}
 
 	setPointType(t) {
@@ -367,7 +469,7 @@ export class MultiSelectShapes extends MultiSelect {
 	}
 
 	publishChanges(topic = 'whichShapeIsSelected') {
-		if(this.allowPublishing) {
+		if (this.allowPublishing) {
 			const editor = getCurrentProjectEditor();
 			editor.publish(topic, this.members);
 		}
@@ -419,6 +521,11 @@ export class MultiSelectShapes extends MultiSelect {
 		}
 
 		return false;
+	}
+
+	sort() {
+		const itemShapes = this.members[0].parent.shapes;
+		this.members = this.members.sort((a, b) => itemShapes.indexOf(a) - itemShapes.indexOf(b));
 	}
 
 	combine(operation = 'unite') {
@@ -507,6 +614,14 @@ export class MultiSelectShapes extends MultiSelect {
 		});
 
 		// log('Glyph.alignShapes', 'end');
+	}
+
+	roundAll(precision = 9) {
+		this.virtualGlyph.shapes.forEach((shape) => {
+			// log(this.members[m]);
+			shape.roundAll(precision);
+		});
+		this.changed();
 	}
 
 	updateShapePosition(dx, dy) {

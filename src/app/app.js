@@ -32,9 +32,9 @@ export class GlyphrStudioApp {
 				overwriteTitle: true, // {bool} Use a 'Dev Mode' window title
 				sampleProject: false, // {true/false, 'oblegg', 'bool'} Load the sample project
 				twoSampleProjects: false, // {bool} Load two sample projects
-				currentPage: 'Characters', // {Sentence case page name} navigate straight to a page
-				currentGlyphID: 'glyph-0x64', // {glyph id} select a glyph
-				currentPanel: false, // {Title case panel name} navigate straight to a panel
+				currentPage: false, // {Sentence case page name} navigate straight to a page
+				currentGlyphID: false, // {glyph id} select a glyph
+				currentPanel: false, // {Sentence case panel name} navigate straight to a panel
 				currentTool: false, // {Tool name} select a tool
 				stopPageNavigation: false, // {bool} overwrite project-level setting
 				autoSave: false, // {bool} trigger auto saves
@@ -123,7 +123,7 @@ export class GlyphrStudioApp {
 
 		// Final dev mode stuff
 		// @ts-ignore
-		if (dev.mode && (dev.selectFirstShape || dev.selectFirstPoint)) editor.editCanvas.redraw();
+		if (dev.mode && (dev.selectFirstShape || dev.selectFirstPoint)) editor.editCanvas.redraw('dev mode select first shape');
 		console.log(this);
 		// log(`GlyphrStudioApp.setUp`, 'end');
 	}

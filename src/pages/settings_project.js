@@ -23,6 +23,8 @@ import { makeOneSettingsRow } from './settings.js';
  * @returns {Element}
  */
 export function makeSettingsTabContentProject() {
+	updateAllCharacterRangeCounts();
+
 	const tabContent = makeElement({
 		tag: 'div',
 		className: 'settings-page__tab-content',
@@ -124,10 +126,12 @@ export function makeSettingsTabContentProject() {
 function updateRangesTables() {
 	const enabled = document.querySelector('#enabled-range-table__wrapper');
 	const hidden = document.querySelector('#hidden-range-table__wrapper');
-	enabled.innerHTML = '';
-	hidden.innerHTML = '';
-	addAsChildren(enabled, makeEnabledRangesTable());
-	addAsChildren(hidden, makeHiddenRangesTable());
+	if (enabled && hidden) {
+		enabled.innerHTML = '';
+		hidden.innerHTML = '';
+		addAsChildren(enabled, makeEnabledRangesTable());
+		addAsChildren(hidden, makeHiddenRangesTable());
+	}
 }
 
 // --------------------------------------------------------------
@@ -856,6 +860,12 @@ export function addCharacterRangeToCurrentProject(range, successCallback, showNo
 		if (showNotification) showToast(`Glyph range is already enabled for your project.`);
 	}
 	// log(`addCharacterRangeToCurrentProject`, 'end');
+}
+
+export function updateAllCharacterRangeCounts() {
+	const project = getCurrentProject();
+	const ranges = project.settings.project.characterRanges;
+	ranges.forEach((range) => project.updateCharacterRangeCount(range));
 }
 
 export function findCharacterRange(range, ranges) {

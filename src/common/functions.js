@@ -49,6 +49,21 @@ export function countItems(object) {
 // --------------------------------------------------------------
 
 /**
+ * Counts the number of times a search term is found in an array
+ * @param {Array} arr - array to search through
+ * @param {*} term - any value to search for
+ * @returns {Number} - count of matches
+ */
+export function count(arr = [], term = '') {
+	let count = 0;
+	if (!arr || !Array.isArray(arr)) return 0;
+	arr.forEach((item) => {
+		if (item === term) count += 1;
+	});
+	return count;
+}
+
+/**
  * Returns a full new copy of any object
  * 'parent' is a pointer up to parent object, they
  * cause infinite loops when cloning objects.  Kind of a hack.
@@ -521,13 +536,17 @@ export function calculateDeltasFromTransform(
  * @returns {Number} - Angle (in radians)
  */
 export function calculateAngle(handle, point = { x: 0, y: 0 }) {
+	// log(`calculateAngle`, 'start');
+	// log(`handle: ${handle.x}, ${handle.y}`);
+	// log(`point: ${point.x}, ${point.y}`);
 	let result = Math.atan2(handle.y - point.y, handle.x - point.x);
 
 	if (isNaN(result)) {
 		console.warn('calculateAngle returned NaN\n' + json(handle) + '\n' + json(point));
 		result = 0;
 	}
-
+	// log(`result: ${result}`);
+	// log(`calculateAngle`, 'end');
 	return result;
 }
 

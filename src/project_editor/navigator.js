@@ -212,13 +212,8 @@ export function makeNavButtonContent(title, superTitle) {
 }
 
 export function toggleNavDropdown(parentElement) {
-	let dropdown = document.querySelector('nav');
-
-	if (dropdown) {
-		closeAllNavMenus();
-	} else {
-		showNavDropdown(parentElement);
-	}
+	closeAllNavMenus();
+	showNavDropdown(parentElement);
 }
 
 /**
@@ -239,12 +234,6 @@ export function closeAllNavMenus(isChooserMenu = false) {
 		}
 	});
 	// log(`closeAllNavMenus`, 'end');
-}
-
-export function setNavMenuHideListeners(element) {
-	element.addEventListener('mouseleave', () => {
-		closeAllNavMenus();
-	});
 }
 
 export function showNavDropdown(parentElement) {
@@ -306,8 +295,6 @@ export function showNavDropdown(parentElement) {
 			border-color: ${parentStyle.backgroundColor};
 		`,
 	});
-
-	setNavMenuHideListeners(dropDown);
 
 	addAsChildren(dropDown, dropdownContent);
 	// log(`dropDown:`);
@@ -386,12 +373,20 @@ function makePanelChooserContent() {
 	let content = makeElement();
 	let pageButton;
 	let panels = listOfPanels();
-	let shownPanels = ['Attributes', 'Layers', 'ContextCharacters', 'History', 'Guides'];
+	let shownPanels = [
+		'Attributes',
+		'Layers',
+		'ContextCharacters',
+		'History',
+		'Guides',
+		'CharacterInfo',
+		'QualityChecks',
+	];
 	let page = getCurrentProjectEditor().nav.page;
 	if (page === 'Kerning') {
 		shownPanels = ['Attributes', 'History'];
 	} else if (page === 'Components') {
-		shownPanels = ['Attributes', 'Layers', 'History', 'Guides'];
+		shownPanels = ['Attributes', 'Layers', 'History', 'Guides', 'QualityChecks'];
 	}
 
 	shownPanels.forEach((panelName) => {
@@ -453,6 +448,16 @@ function listOfPanels() {
 			name: 'Guides',
 			panelMaker: false,
 			iconName: 'panel_guides',
+		},
+		CharacterInfo: {
+			name: 'Character info',
+			panelMaker: false,
+			iconName: 'panel_characterInfo',
+		},
+		QualityChecks: {
+			name: 'Quality checks',
+			panelMaker: false,
+			iconName: 'panel_qualityChecks',
 		},
 	};
 }

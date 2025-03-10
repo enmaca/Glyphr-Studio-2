@@ -1,11 +1,13 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { accentColors } from '../../common/colors.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
-import { round } from '../../common/functions.js';
+import { round, valuesAreClose } from '../../common/functions.js';
 import { drawShape } from '../../display_canvas/draw_paths.js';
 import { ComponentInstance } from '../../project_data/component_instance.js';
+import { Glyph } from '../../project_data/glyph.js';
 import { Path } from '../../project_data/path.js';
 import { closePopOutWindow, openPopOutWindow } from '../../project_editor/pop_out_window.js';
+import { updateCursor } from '../cursors.js';
 import { cXsX, cYsY } from '../edit_canvas.js';
 import { stopCreatingNewPath } from './new_path.js';
 
@@ -79,7 +81,7 @@ export function makeEditToolsButtons() {
 			}),
 		});
 
-		newToolButton.addEventListener('click', () => clickTool(buttonName));
+		newToolButton.addEventListener('click', () => selectTool(buttonName));
 
 		if (isSelected) newToolButton.classList.add('editor-page__tool-selected');
 
@@ -159,7 +161,7 @@ export function makeViewToolsButtons() {
 				selected: isSelected,
 			}),
 		});
-		newToolButton.addEventListener('click', () => clickTool(buttonName));
+		newToolButton.addEventListener('click', () => selectTool(buttonName));
 
 		if (isSelected) newToolButton.classList.add('editor-page__tool-selected');
 
@@ -249,8 +251,8 @@ export function makeViewToolsButtons() {
  * Event handler for clicking a tool button
  * @param {String} tool - which tool was clicked
  */
-export function clickTool(tool) {
-	// log('clickTool', 'start');
+export function selectTool(tool) {
+	// log('selectTool', 'start');
 	const editor = getCurrentProjectEditor();
 	let zoomTools = ['zoom1to1', 'zoomEm', 'zoomIn', 'zoomOut'];
 
@@ -262,6 +264,7 @@ export function clickTool(tool) {
 		editor.publish('editCanvasView', editor.view);
 	} else {
 		switchToolTo(tool);
+		updateCursor();
 	}
 
 	if (tool === 'resize') editor.multiSelect.points.clear();
@@ -273,7 +276,7 @@ export function clickTool(tool) {
 		stopCreatingNewPath();
 	}
 
-	// log('clickTool', 'end');
+	// log('selectTool', 'end');
 }
 
 /**
@@ -307,7 +310,7 @@ export function makeKernToolButton() {
 		}),
 	});
 
-	kernToolButton.addEventListener('click', () => clickTool('kern'));
+	kernToolButton.addEventListener('click', () => selectTool('kern'));
 
 	editor.subscribe({
 		topic: 'whichToolIsSelected',
@@ -349,13 +352,29 @@ export function addPathToCurrentItem(newPath) {
 		newPath.name = 'Rectangle ' + (editor.selectedItem.shapes.length * 1 + 1);
 	}
 
-	let sg = editor.selectedItem;
+	const result = editor.selectedItem.addOneShape(newPath);
 
-	newPath = sg.addOneShape(newPath);
+	checkForFirstShapeAutoRSB();
 
-	// log(`returns: ${ewPath.name}`);
+	// log(`returns: ${result.name}`);
 	// log(`addPathToCurrentItem`, 'end');
-	return newPath;
+	return result;
+}
+
+/**
+ * For projects that have 'autoRightBearingOnFirstShape' set,
+ * check if the current item has one shape, and if so, set the
+ * right side bearing to that value.
+ */
+export function checkForFirstShapeAutoRSB() {
+	const editor = getCurrentProjectEditor();
+	const selectedItem = editor.selectedItem;
+	if (selectedItem.objType === 'Glyph' || selectedItem.objType === 'Ligature') {
+		const autoRSB = editor.project.settings.app.autoRightBearingOnFirstShape;
+		if (selectedItem.shapes.length === 1 && selectedItem.advanceWidth === 0 && autoRSB > -1) {
+			selectedItem.rightSideBearing = autoRSB;
+		}
+	}
 }
 
 /**
@@ -442,6 +461,84 @@ export function isShapeHere(shape, cx, cy) {
 	// log('red = ' + imageData.data[0] + '  returning: ' + (imageData.data[0] < 255));
 	// log(`isShapeHere`, 'end');
 	return imageData.data[0] < 255;
+}
+
+/**
+ * Returns a true if an x/y point is near the edge of a shape
+ * @param {Path | ComponentInstance} shape - shape to check
+ * @param {Number} cx - clicked x value
+ * @param {Number} cy - clicked y value
+ * @param {Number} thickness - how close to the edge returns true
+ * @returns {Boolean}
+ */
+export function isPointNearShapeEdge(shape, cx, cy, thickness = 10) {
+	// log(`isPointNearShapeEdge`, 'start');
+	// log(`cx: ${cx} / cy: ${cy}`);
+	let sx = cXsX(cx);
+	let sy = cYsY(cy);
+	let sThickness = thickness / getCurrentProjectEditor().view.dz;
+	// log(`sx: ${sx} / sy: ${sy}`);
+
+	if (!shape.maxes.isPointInside(sx, sy, sThickness)) {
+		// log(`Outside maxes for this shape`);
+		// log(`isPointNearShapeEdge`, 'end');
+		return false;
+	}
+
+	let g1 = 100;
+	let g2 = 200;
+	let ghc = document.createElement('canvas');
+	ghc.width = shape.maxes.width + g2;
+	ghc.height = shape.maxes.height + g2;
+	let ctx = ghc.getContext('2d', {
+		alpha: false,
+		willReadFrequently: true,
+	});
+	let view = { dx: shape.maxes.xMin * -1 + g1, dy: shape.maxes.yMax + g1, dz: 1 };
+
+	ctx.fillStyle = 'rgb(255, 255, 255)';
+	ctx.fillRect(0, 0, shape.maxes.width + g2, shape.maxes.height + g2);
+
+	ctx.beginPath();
+	drawShape(shape, ctx, view);
+	ctx.closePath();
+
+	ctx.strokeStyle = 'rgb(0,0,0)';
+	ctx.lineWidth = sThickness;
+	ctx.fill();
+	ctx.stroke();
+
+	let xTest = sx + view.dx;
+	let yTest = view.dy - sy;
+	let imageData = ctx.getImageData(xTest, yTest, 1, 1);
+
+	// log(`isPointNearShapeEdge`, 'end');
+	return imageData.data[0] < 255;
+}
+
+/**
+ * Detects if the mosue is over a side bearing
+ * @param {Number} cx - canvas X value
+ * @param {Number} cy - canvas Y value
+ * @param {Glyph | Object} item - thing to get the side bearing from
+ * @returns	{String | false} - 'lsb' or 'rsb'
+ */
+export function isSideBearingHere(cx, cy, item) {
+	// log(`isSideBearingHere`, 'start');
+	let sx = cXsX(cx);
+	// let sy = cYsY(cy);
+	const target = 7;
+	/** @type {String | false} */
+	let result = false;
+
+	if (Math.abs(sx) < target) result = 'lsb';
+	if (item.objType !== 'Component') {
+		if (valuesAreClose(sx, item.advanceWidth, target)) result = 'rsb';
+	}
+
+	// log(`result: ${result}`);
+	// log(`isSideBearingHere`, 'end');
+	return result;
 }
 
 // --------------------------------------------------------------
